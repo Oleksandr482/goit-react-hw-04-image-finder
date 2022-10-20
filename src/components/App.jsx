@@ -1,26 +1,24 @@
-import { Component } from 'react';
 import { Button } from './Button/Button';
 import { ImageGallery } from './ImageGallery/ImageGallery';
-import Searchbar from './Searchbar/Searchbar';
+import { Searchbar } from './Searchbar/Searchbar';
 import { ThreeDots } from 'react-loader-spinner';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.min.css';
 import { SearchError } from './SearchError/SearchError';
 import { fetchArticles } from 'js/fetchArticles';
+import { useState } from 'react';
+import { useEffect } from 'react';
 
-export class App extends Component {
-  state = {
-    page: 1,
-    totalPages: 1,
-    images: [],
-    searchQuery: '',
-    status: 'idle',
-  };
+export const App = () => {
+  const [page, setPage] = useState(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [images, setImages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState(null);
+  const [status, setStatus] = useState('idle');
 
-  componentDidUpdate = (prevProps, prevState) => {
-    const { searchQuery, page } = this.state;
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
-      this.setState({ status: 'pending' });
+  useEffect(() => {
+    if (searchQuery && page) {
+      setStatus('pending');
 
       fetchArticles(searchQuery, page)
         .then(r => {
@@ -32,65 +30,63 @@ export class App extends Component {
               largeImageURL: image.largeImageURL,
             };
           });
-          this.setState(prevState => ({
-            images: [...prevState.images, ...images],
-            status: 'resolved',
-            totalPages: Math.ceil(r.totalHits / 12),
-          }));
+
+          setImages(prevState => [...prevState, ...images]);
+          setStatus('resolved');
+          setTotalPages(Math.ceil(r.totalHits / 12));
         })
         .catch(e => {
-          this.setState({ status: 'rejected' });
+          setStatus('rejected');
         });
     }
+  }, [page, searchQuery]);
+
+  const fetchImages = query => {
+    setSearchQuery(query);
+    setPage(1);
+    setImages([]);
   };
 
-  fetchImages = query => {
-    this.setState({ searchQuery: query, page: 1, images: [] });
+  const loadMore = () => {
+    setPage(state => state + 1);
   };
 
-  loadMore = () => {
-    this.setState(state => ({ page: state.page + 1 }));
-  };
-
-  render() {
-    const { status, images, searchQuery, page, totalPages } = this.state;
-    return (
-      <>
-        <Searchbar onSubmit={this.fetchImages} />
-        {status === 'rejected' && (
-          <SearchError
-            message={`Sorry, we did not find any results for "${searchQuery}"`}
-          />
-        )}
-        {images.length > 0 && <ImageGallery results={images} />}
-        {images.length > 0 && status === 'resolved' && page !== totalPages && (
-          <Button onClick={this.loadMore} />
-        )}
-        {status === 'pending' && (
-          <ThreeDots
-            height="80"
-            width="80"
-            radius="12"
-            color="#3f51b5"
-            ariaLabel="three-dots-loading"
-            wrapperClass="Loader"
-            visible={true}
-          />
-        )}
-
-        <ToastContainer
-          position="top-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
+  return (
+    <>
+      <Searchbar onSubmit={fetchImages} />
+      {status === 'rejected' && (
+        <SearchError
+          message={`Sorry, we did not find any results for "${searchQuery}"`}
         />
-      </>
-    );
-  }
-}
+      )}
+      {images.length > 0 && <ImageGallery results={images} />}
+      {images.length > 0 && status === 'resolved' && page !== totalPages && (
+        <Button onClick={loadMore} />
+      )}
+      {status === 'pending' && (
+        <ThreeDots
+          height="80"
+          width="80"
+          radius="12"
+          color="#3f51b5"
+          ariaLabel="three-dots-loading"
+          wrapperClass="Loader"
+          visible={true}
+        />
+      )}
+
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+    </>
+  );
+};
